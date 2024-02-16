@@ -26,6 +26,7 @@ class CSVFile:
                     temp = [
                     ]  # Lista che contine l'elemento [anno-mese,passeggero]
                     line = line.strip()  # Rimuovi spazi all'inizio e alla fine
+                    
                     try:
                         match1 = re.search(pattern1, line)
                         match2 = re.search(pattern2, line)
@@ -86,38 +87,47 @@ class CSVTimeSeriesFile(CSVFile):
         # set è un insieme che non ha doppi
         for item in lista:
             # Confronta la tupla (anno, valore) di ogni elemento della lista
-            if item[0] in seen:  # se questo elemento c'è già
+            anno = item[0]
+            mese = item[1]
+            if anno in seen:  # se questo elemento c'è già
                 # Se l'elemento è già stato visto, salta questo elemento
-                if not (item[0],item[1]) in seen2:
+                if not (anno,mese) in seen2:
                     raise ExamException("Errore: due 'valori passeggeri' diversi per lo stesso mese")
                     
             else:  # altrimenti tale elemento viene salvato in seen()
                 # Se l'elemento non è stato visto, lo aggiungo alla lista pulita
                 lista_pulita.append(item)
-                seen.add((item[0]))
-                seen2.add((item[0],item[1]))
+                seen.add((anno))
+                seen2.add((anno,mese))
         #print(lista_pulita)
         return lista_pulita
 
 
     def controllo_ordine(self, numerical_data):  #verifico che la lista sia ordinata
-        anni = []
+        nuova_lista = []
         for i in range(len(numerical_data)): #modifico i valori degli anni e dei mesi in interi per un rapido confronto
-            elements = numerical_data[i][0].split('-') #splitto
+            anno_mese = numerical_data[i][0]
+            elements = anno_mese.split('-') #splitto
+            anno = elements[0]
+            mese = elements[1]
             try: # e provo a fare un cast 
-                elements[0] = int(elements[0].strip())
-                elements[1] = int(elements[1].strip())
+                anno = int(anno.strip())
+                mese = int(mese.strip())
             except TypeError as e:
                 print(f"Errore {e} in anno o mese: non è possiblie convertirli")
             except Exception as e:
                 raise ExamException("Errore non gestito: '{}'".format(e)) from None
 
-            anni.append([elements[0], elements[1]])
+            nuova_lista.append([anno, mese])
 
-        for i in range(0, len(anni) - 1): #qui faccio il vero e prorpio controllo
-            if anni[i][0] > anni[i + 1][0]: #l'anno succ >= anno prec
+        for i in range(0, len(nuova_lista) - 1): #qui faccio il vero e prorpio controllo
+            anno_pres = nuova_lista[i][0]
+            anno_succ = nuova_lista[i+1][0]
+            mese_pres = nuova_lista[i][1]
+            mese_succ = nuova_lista[i + 1][1]
+            if anno_pres > anno_succ: #l'anno succ >= anno prec
                 return False
-            if anni[i][0] == anni[i + 1][0] and anni[i][1] > anni[i + 1][1]: #e anche i giorni
+            if anno_pres == anno_succ and mese_pres > mese_succ: #e anche i giorni
                 return False
         return True
 
@@ -171,8 +181,11 @@ def refull(Lista):  #per la LISTA CON SOLI ANNI-PASEGGERI
     #se mancano degli anni tra due estremi per facilitare le operazioni nella funzione _increments, allora la riempio assegnando None al valore passeggeri per l'anno mancante
     for i in range(len(Lista) - 1):
         #se l'anno corrente è diverso da quello successivo - 1 e se l'anno corrente è minore dell'ultimo anno nella lista
-        if Lista[i][0] != Lista[i + 1][0] - 1 and Lista[i][0] < Lista[-1][0]:
-            nuovo_anno = Lista[i][0] + 1
+        anno_pres = Lista[i][0]
+        anno_succ = Lista[i + 1][0]
+        ultimo_anno = Lista[-1][0]
+        if anno_pres != anno_succ - 1 and anno_pres < ultimo_anno:
+            nuovo_anno = anno_pres + 1
             Lista.insert(i + 1, [nuovo_anno, None])
     #print(f'{Lista}')
     return Lista
@@ -187,41 +200,46 @@ def lista_anni_medie(time_series):  # Lista:  anno per anno - media_passeggeri
     for i in range(0, len(time_series)): 
         # scorro tutta la lista e confronto l'anno corrente con quello successivo per capire quando terminare le somme dei passeggeri
         try:  # anno_pres != anno_succ
-            if time_series[i][0] != time_series[i + 1][0]:
+            anno_pres = time_series[i][0]
+            anno_succ = time_series[i + 1][0]
+            val_passeggeri = time_series[i][1]
+            if anno_pres != anno_succ:
                 if div == 0:  # se l'anno cambia verifico se ho avuto delle somme: devo confrontare quindi l'ultimo anno ancora non preso in considerazione
-                    if time_series[i][1] is not None:
+                    if val_passeggeri is not None:
                         #se l'ultimo anno ha passeggeri nulli, bene ho un unico dato di tutto l'anno
-                        s = s + time_series[i][1]
-                        lista_intermedia.append([time_series[i][0], s])
+                        s = s + val_passeggeri
+                        lista_intermedia.append([anno_pres, s])
                         #print(f'1 {lista_intermedia}\n')
                     else: # altrimenti quell'anno non ha nessun dato -> valore passeggeri = None 
-                        lista_intermedia.append([time_series[i][0], None])
+                        lista_intermedia.append([anno_pres, None])
                         #print(f'2 {lista_intermedia}\n')
                 else:  # anche qui, v != 0 -> ho avuto almeno 1 somma
-                    if time_series[i][1] is not None:
+                    if val_passeggeri is not None:
                         # se l'ultimo mese di quell'anno non None -> ulteriore somma -> ulteriore divisoew
-                        s = s + time_series[i][1]
+                        s = s + val_passeggeri
                         lista_intermedia.append(
-                            [time_series[i][0], s / (div + 1)])
+                            [anno_pres, s / (div + 1)])
                         #print(f'3 {lista_intermedia}\n')
                     else: #altrimenti se l'ultimo mese = None utilizzo i dati che avevo già
-                        lista_intermedia.append([time_series[i][0], s / div])
+                        lista_intermedia.append([anno_pres, s / div])
                 s = 0
                 div = 0
             else: #se l'anno_succ == anno_corr posso stare tranquillo e fare la somma dei pass. se il valore != none
-                if time_series[i][1] is not None:
-                    s = s + time_series[i][1]
+                if val_passeggeri is not None:
+                    s = s + val_passeggeri
                     div += 1
         except IndexError: #quando arrivo alla fine della lista originale confronto l'ultimo elemento con uno successivo -> che però non esiste, quindi vado in IndexError
+            anno_pres = time_series[i][0]
+            val_passeggeri = time_series[i][1]
             if div == 0: # quindi controllo come sempre l'ultimo mese che ancora non ho controllato
-                if time_series[i][1] is not None:
-                    s = s + time_series[i][1]
-                    lista_intermedia.append([time_series[i][0], s / (div + 1)])
+                if val_passeggeri is not None:
+                    s = s + val_passeggeri
+                    lista_intermedia.append([anno_pres, s / (div + 1)])
                 else:
-                    lista_intermedia.append([time_series[i][0], None])
+                    lista_intermedia.append([anno_pres, None])
             else:
-                s = s + time_series[i][1]
-                lista_intermedia.append([time_series[i][0], s / (div + 1)])
+                s = s + val_passeggeri
+                lista_intermedia.append([anno_pres, s / (div + 1)])
     lista_intermedia = refull(lista_intermedia)
     return lista_intermedia
 
@@ -246,19 +264,23 @@ def compute_increments(time_series, first_year, last_year): #finalmente eccoci q
 
     else: #a questo punto:
         for i in range(len(nuovo_time_series)):  #scorro tutti anno per anno
-            if first_year <= nuovo_time_series[i][0] and nuovo_time_series[i][1] is not None:
+            anno_corr = nuovo_time_series[i][0]
+            val_passeggeri = nuovo_time_series[i][1]
+            if first_year <= anno_corr and val_passeggeri is not None:
                 #verifico se l'anno_corrente è compreso tra first_year e last_year e che non abbia come valore dei passeggeri None, altrimenti vado avanti finchè non ne trovo uno o nessuno (esco dal ciclo)
                 for j in range(i + 1, len(nuovo_time_series)):
                     #se ho trovato un anno_corrente != None che sia compreso nel range controllo per l'anno successivo la setssa cosa con un ciclo for
-                    if nuovo_time_series[j][0] <= last_year and nuovo_time_series[j][1] is not None:
+                    anno_succ = nuovo_time_series[j][0]
+                    val_passeggeri_succ = nuovo_time_series[j][1]
+                    if anno_succ <= last_year and val_passeggeri_succ is not None:
                         # se l'anno_succ è compreso nel range ed è != None allora posso calcolatre l'incremento
                         increments = {}
-                        incremento = nuovo_time_series[j][
-                            1] - nuovo_time_series[i][1]
+                        incremento = val_passeggeri_succ - val_passeggeri
                         #anno successivo - corrente
-                        intervallo = f"{nuovo_time_series[i][0]}-{nuovo_time_series[j][0]}"
+                        intervallo = f"{anno_corr}-{anno_succ}"
                         increments[intervallo] = incremento
                         list_increments.update(increments)
                         #update del dizionario
                         break
     return list_increments
+
