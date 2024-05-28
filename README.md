@@ -1,3 +1,3 @@
 # ProgrammingLab
 
-Laboratorio I semstre del I anno, in INTRODUZUINE ALLA PROGRAMMAZIONE
+Laboratorio I semestre del I anno, in INTRODUZUINE ALLA PROGRAMMAZIONE
